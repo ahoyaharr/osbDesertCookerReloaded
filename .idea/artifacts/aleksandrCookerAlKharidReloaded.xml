@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="aleksandrCookerAlKharidReloaded">
+    <output-path>$USER_HOME$/OSBot</output-path>
+    <root id="archive" name="aleksandrCookerAlKharidReloaded.jar">
+      <element id="module-output" name="aleksandrCookerRewrite" />
+    </root>
+  </artifact>
+</component>
