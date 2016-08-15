@@ -1,5 +1,6 @@
 import org.osbot.rs07.api.map.Area;
 import org.osbot.rs07.api.map.Position;
+import org.osbot.rs07.api.model.Item;
 import org.osbot.rs07.api.model.NPC;
 import org.osbot.rs07.api.ui.Skill;
 import org.osbot.rs07.api.util.ExperienceTracker;
@@ -7,14 +8,22 @@ import org.osbot.rs07.script.Script;
 import org.osbot.rs07.script.ScriptManifest;
 
 import java.awt.*;
+import java.util.Hashtable;
+import java.util.Set;
 import java.util.List;
 
-@ScriptManifest(name = "aleksandr's Desert Chef", author = "Solzhenitsyn", version = 1.1, info = "AIO Cooker + Pizza maker", logo = "")
+@ScriptManifest(name = "aleksandrDesertChef", author = "Solzhenitsyn", version = 1.2, info = "AIO Cooker + Pizza maker", logo = "")
 public class aleksandrCookerRewrite extends Script {
 
     private Timer timer;
     private Cursor m;
     private String status = "Getting ready for work...";
+
+    //Paint
+    Hashtable<String, Integer> progress = new Hashtable<>();
+    private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Tuna", "Plain pizza", "Lobster", "Swordfish", "Monkfish",
+            "Shark", "Sea turtle", "Dark crab", "Manta ray"};
+    private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Plain pizza", "Anchovy Pizza"};
 
     // Areas
     private Area validRegion = new Area(
@@ -29,7 +38,7 @@ public class aleksandrCookerRewrite extends Script {
     private Area grandExchange = new Area(3172, 3487, 3169, 3491);
 
     // Used for obstacle handling
-    private Position insideRange = new Position(3273, 3181, 0);
+    private Position insideRange = new Position(3272, 3180, 0);
     private Position insideBank = new Position(3269, 3170, 0);
 
     private NPC banker = null;
@@ -41,8 +50,8 @@ public class aleksandrCookerRewrite extends Script {
 
     // Index corresponds
     private String[] pizzaIngredients = {"Pizza base", "Tomato", "Incomplete pizza", "Cheese", "Anchovies", "Plain pizza"};
-    private String[] rawFoods = {"Raw shrimps", "Raw beef", "Raw chicken", "Raw trout", "Raw anchovies", "Raw salmon", "Raw tuna", "Uncooked pizza", "Raw lobster", "Raw swordfish",
-            "Raw monkfish", "Raw shark", "Raw sea  turtle", "Raw dark crab", "Raw manta ray"};
+    private String[] rawFoods = {"Raw shrimps", "Raw beef", "Raw chicken", "Raw sardine", "Raw trout", "Raw anchovies", "Raw salmon", "Raw tuna", "Uncooked pizza", "Raw lobster", "Raw swordfish",
+            "Raw monkfish", "Raw shark", "Raw sea turtle", "Raw dark crab", "Raw manta ray"};
     private int[] rawFoodLevels = {1, 1, 1, 1, 15, 34, 50, 60, 68, 74, 86, 90, 99, 99, 99, 99};
 
     private enum State {
@@ -150,12 +159,34 @@ public class aleksandrCookerRewrite extends Script {
         xpTracker.start(Skill.COOKING);
     }
 
-    public void onPaint(Graphics2D g) { // NOT DONE
+    //@paint
+    public void onPaint(Graphics2D g) {
         int msHour = 3600000;
         int fishCooked = 0;
+        int ingrCombined = 0;
+        String prog = "Work Completed:\n";
+
+        for (String s : progress.keySet()) {
+            for (String combine : combinedIngredients) {
+                if (s.equals(combine)) {
+                    ingrCombined += progress.get(s);
+                    if (progress.get(s) > 0) {
+                        prog += s + " - " + progress.get(s) + "\n";
+                    }
+                }
+            }
+            for (String cooked : cookedFood) {
+                if (s.equals(cooked)) {
+                    fishCooked += progress.get(s);
+                    if (progress.get(s) > 0) {
+                        prog += s + " - " + progress.get(s) + "\n";
+                    }
+                }
+            }
+        }
         m.draw(g);
         g.setFont(new Font("Tahoma", Font.PLAIN, 14));
-        g.drawString("aleksandrCookerRewrite", 12, 30);
+        g.drawString("aleksandrDesertChefReloaded", 12, 30);
         g.drawString("Currently " + status, 12, 49);
 
         g.drawString("Experience Tracker:", 12, 68);
@@ -164,24 +195,46 @@ public class aleksandrCookerRewrite extends Script {
                 + " (" + xpTracker.getGainedXPPerHour(Skill.COOKING) + ")", 30, 106);
         g.drawString("Levels Gained: " + xpTracker.getGainedLevels(Skill.COOKING)
                 + " (TTL: " + parse(xpTracker.getTimeToLevel(Skill.COOKING)) + ")", 30, 125);
-        /*g.drawString("Food Cooked: "
-                + cooked
-                + " ("
-                + (int)((float)cooked/((float)timer.getElapsed()/(float)msHour))
-                + ")", 12, 135);
-        if (pizzaComponentsMade > 0) {
-            g.drawString("Ingredients Combined: "
-                    + pizzaComponentsMade
+        if (fishCooked > 0) {
+            g.drawString("Food Cooked: "
+                    + fishCooked
                     + " ("
-                    + (int)((float)pizzaComponentsMade/((float)timer.getElapsed()/(float)msHour))
-                    + ")", 12, 150);
-        }*/
-        g.drawString("Timer: " + timer.parse(timer.getElapsed()), 12, 144);
+                    + (int) ((float) fishCooked / ((float) timer.getElapsed() / (float) msHour))
+                    + ")", 12, 144);
+        }
+        if (ingrCombined > 0) {
+            g.drawString("Ingredients Combined: "
+                    + ingrCombined
+                    + " ("
+                    + (int)((float)ingrCombined/((float)timer.getElapsed()/(float)msHour))
+                    + ")", 12, 163);
+        }
+        g.drawString("Timer: " + timer.parse(timer.getElapsed()), 12, 182);
+        if (!prog.equals("Work completed: \n")) {
+            g.drawString(prog, 12, 201);
+        }
     }
 
     public int onLoop() throws InterruptedException {
         switch (getState()) {
             case Lost:
+                if (grandExchange.contains(myPosition())
+                        && getNpcs().closest("Banker") != null) {
+                    getNpcs().closest("Banker").interact("Bank");
+                    new cSleep(() -> getBank().isOpen(), 6500).sleep();
+                    sleep(550);
+                    if (!inventory.isEmpty()) {
+                        getBank().depositAll();
+                        new cSleep(() -> getInventory().isEmpty(), 1500);
+                        sleep(250);
+                        getBank().close();
+                        sleep(250);
+                        int i = getWorlds().getCurrentWorld();
+                        getWorlds().hopToF2PWorld();
+                        new cSleep(() -> getWorlds().getCurrentWorld() != i, 5500);
+                        sleep(750);
+                    }
+                }
                 status = "walking back to the cooking area...";
                 getWalking().webWalk(new Position(3271, 3167, 0));
                 new cSleep(() -> validRegion.contains(myPosition()), 5000).sleep();
@@ -193,12 +246,12 @@ public class aleksandrCookerRewrite extends Script {
                     getSettings().setRunning(false);
                 }
                 // If there is an obstacle en route to the bank, then handle it.
-                if (!getDoorHandler().canReachOrOpen(insideBank)) {
-                    status = "handling the closed door...";
-                    getDoorHandler().handleNextObstacle(insideBank);
-                    new cSleep(() -> getDoorHandler().canReachOrOpen(insideBank), 5000);
-                    sleep(500);
-                }
+                    status = "validating that a path to the bank exists...";
+                    if (getDoorHandler().handleNextObstacle(insideBank)) {
+                        status = "opening a closed door...";
+                        sleep(2500);
+                    }
+
                 if (banker == null) {
                     if (getBanker() != null) {
                         banker = getBanker();
@@ -208,9 +261,19 @@ public class aleksandrCookerRewrite extends Script {
                     getNpcs().closest("Banker").interact("Bank");
                     status = "adjusting the camera so that the range is easier to click...";
                     setCamera(22, 36, 0, 30);
+                    status = "waiting for bank interface to exist...";
                     new cSleep(() -> getBank().isOpen(), 10000).sleep();
-                    sleep(random(150, 300));
+                    sleep(random(350, 500));
                     if (getBank().isOpen()) {
+                        for (Item s : getInventory().getItems()) {
+                            if (s != null) {
+                                int i = 0;
+                                if (progress.containsKey(s.getName())) {
+                                    i = progress.get(s.getName());
+                                }
+                                progress.put(s.getName(), i + s.getAmount());
+                            }
+                        }
                         // Deposit all items
                         if (!getInventory().isEmpty()) {
                             status = "depositing all items...";
@@ -239,11 +302,13 @@ public class aleksandrCookerRewrite extends Script {
                         }
                         // If we don't have pizza ingredients or raw food, then we will walk to the Grand Exchange. If our mule is online, we will trade our mule.
                         else {
-                            status = "walking to the Grand Exchange, because we have finished working...";
-                            getWalking().webWalk(grandExchange);
-                            new cSleep(() -> grandExchange.contains(myPosition()), 180000).sleep();
-                            // Check to see if our mule exists, if it does then trade it.
-                            stop();
+                            if (getBank().isOpen()) { // Redundant check
+                                status = "walking to the Grand Exchange, because we have finished working...";
+                                getWalking().webWalk(grandExchange);
+                                new cSleep(() -> grandExchange.contains(myPosition()), 180000).sleep();
+                                // Check to see if our mule exists, if it does then trade it.
+                                stop();
+                            }
                         }
                         sleep(250);
                         getBank().close();
@@ -279,12 +344,15 @@ public class aleksandrCookerRewrite extends Script {
                 }
                 if (getObjects().closest("Range") != null && !myPlayer().isAnimating()) {
                     // If there is an obstacle to the range, then handle it.
-                    if (getDoorHandler().canReachOrOpen(insideRange)) {
-                        status = "handling the closed door...";
-                        getDoorHandler().handleNextObstacle(insideRange);
-                        new cSleep(() -> getDoorHandler().canReachOrOpen(insideRange), 17500);
-                        sleep(750);
+                    status = "validating that a path to the bank exists...";
+                    if (getDoorHandler().handleNextObstacle(insideRange)) {
+                        status = "opening a closed door...";
+                        new cSleep(() -> new Area(3276, 3178, 3278,3181).contains(myPosition()), 2500).sleep();
+                        sleep(3500);
                     }
+                   //status = "walking to the range...";
+                   //getWalking().webWalk(insideRange);
+                   // new cSleep(() -> insideRange.distance(myPosition()) < 3, 10000);
                     // Select the food and use it on the range.
                     status = "selecting the raw food...";
                     getInventory().interact("Use", rawFoods[getInventoryRawFoodIndex()]);
