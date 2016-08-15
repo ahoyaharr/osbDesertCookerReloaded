@@ -8,6 +8,7 @@ import org.osbot.rs07.script.Script;
 import org.osbot.rs07.script.ScriptManifest;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Set;
 import java.util.List;
@@ -23,7 +24,7 @@ public class aleksandrCookerRewrite extends Script {
     Hashtable<String, Integer> progress = new Hashtable<>();
     private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Tuna", "Plain pizza", "Lobster", "Swordfish", "Monkfish",
             "Shark", "Sea turtle", "Dark crab", "Manta ray"};
-    private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Plain pizza", "Anchovy Pizza"};
+    private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Plain pizza", "Anchovy pizza"};
 
     // Areas
     private Area validRegion = new Area(
@@ -164,14 +165,14 @@ public class aleksandrCookerRewrite extends Script {
         int msHour = 3600000;
         int fishCooked = 0;
         int ingrCombined = 0;
-        String prog = "Work Completed:\n";
+        List<String> prog = new ArrayList<>();
 
         for (String s : progress.keySet()) {
             for (String combine : combinedIngredients) {
                 if (s.equals(combine)) {
                     ingrCombined += progress.get(s);
                     if (progress.get(s) > 0) {
-                        prog += s + " - " + progress.get(s) + "\n";
+                        prog.add(s + " - " + progress.get(s));
                     }
                 }
             }
@@ -179,7 +180,7 @@ public class aleksandrCookerRewrite extends Script {
                 if (s.equals(cooked)) {
                     fishCooked += progress.get(s);
                     if (progress.get(s) > 0) {
-                        prog += s + " - " + progress.get(s) + "\n";
+                        prog.add(s + " - " + progress.get(s));
                     }
                 }
             }
@@ -210,8 +211,13 @@ public class aleksandrCookerRewrite extends Script {
                     + ")", 12, 163);
         }
         g.drawString("Timer: " + timer.parse(timer.getElapsed()), 12, 182);
-        if (!prog.equals("Work completed: \n")) {
-            g.drawString(prog, 12, 201);
+        if (!prog.isEmpty()) {
+            int yPos = 201;
+            g.drawString("Current progress:", 12, yPos);
+            for (String s : prog) {
+                yPos += 19;
+                g.drawString(s, 30, yPos);
+            }
         }
     }
 
