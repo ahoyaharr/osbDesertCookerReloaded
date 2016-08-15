@@ -17,7 +17,7 @@ public class aleksandrCookerRewrite extends Script {
     private String status = "Getting ready for work...";
 
     // Areas
-    Area validRegion = new Area(
+    private Area validRegion = new Area(
             new int[][]{
                     {3269, 3174}, {3269, 3160}, {3273, 3160},
                     {3273, 3166}, {3280, 3179}, {3279, 3184},
@@ -26,13 +26,13 @@ public class aleksandrCookerRewrite extends Script {
             }
     );
 
-    Area grandExchange = new Area(3172, 3487, 3169, 3491);
+    private Area grandExchange = new Area(3172, 3487, 3169, 3491);
 
     // Used for obstacle handling
-    Position insideRange = new Position(3273, 3181, 0);
-    Position insideBank = new Position(3269, 3170, 0);
+    private Position insideRange = new Position(3273, 3181, 0);
+    private Position insideBank = new Position(3269, 3170, 0);
 
-    NPC banker = null;
+    private NPC banker = null;
 
     // Flags
     private int combineIngredients = -1;
@@ -40,7 +40,7 @@ public class aleksandrCookerRewrite extends Script {
 
 
     // Index corresponds
-    private String[] pizzaIngredients = {"Pizza base", "Tomato", "Unfinished pizza", "Cheese", "Anchovies", "Plain pizza"};
+    private String[] pizzaIngredients = {"Pizza base", "Tomato", "Incomplete pizza", "Cheese", "Anchovies", "Plain pizza"};
     private String[] rawFoods = {"Raw shrimps", "Raw beef", "Raw chicken", "Raw trout", "Raw anchovies", "Raw salmon", "Raw tuna", "Uncooked pizza", "Raw lobster", "Raw swordfish",
             "Raw monkfish", "Raw shark", "Raw sea  turtle", "Raw dark crab", "Raw manta ray"};
     private int[] rawFoodLevels = {1, 1, 1, 1, 15, 34, 50, 60, 68, 74, 86, 90, 99, 99, 99, 99};
@@ -64,7 +64,7 @@ public class aleksandrCookerRewrite extends Script {
         return -1;
     }
 
-    int getBankPizzaIngredientsIndex() {
+    private int getBankPizzaIngredientsIndex() {
         for (int i = 1; i < pizzaIngredients.length - 1; i += 2) {
             if (getBank().contains(pizzaIngredients[i])
                     && getBank().contains(pizzaIngredients[i - 1])
@@ -77,7 +77,7 @@ public class aleksandrCookerRewrite extends Script {
         return -1;
     }
 
-    int getInventoryRawFoodIndex() {
+    private int getInventoryRawFoodIndex() {
         for (int i = 0; i < rawFoods.length - 1; i++) {
             if (getInventory().contains(rawFoods[i])
                     && getSkills().getStatic(Skill.COOKING) >= rawFoodLevels[i]) {
@@ -87,7 +87,7 @@ public class aleksandrCookerRewrite extends Script {
         return -1;
     }
 
-    int getBankRawFoodIndex() {
+    private int getBankRawFoodIndex() {
         if (!getBank().isOpen()) {
             log("Tried checking for items in the bank, but the bank interface was not open. Returning -1.");
             return -1;
@@ -103,7 +103,7 @@ public class aleksandrCookerRewrite extends Script {
 
     // Get NPCs
     // Gets identity of closest banker
-    NPC getBanker() {
+    private NPC getBanker() {
         List<NPC> npcs = getNpcs().get(3267, 3167);
         for (NPC a : npcs) {
             if (a.getName().equals("Banker")) {
@@ -139,24 +139,27 @@ public class aleksandrCookerRewrite extends Script {
             return State.Lost;
         }
         // (BANK)
-        // -We don't have raw food in our inventory
-        // (OR)
-        // -combineIngredients was raised in the last banking cycle, and the items in our inventory are further than what we were combining.
-        else if (getInventoryRawFoodIndex() == -1
-                || (combineIngredients == 0 && getInventoryPizzaIngredientsIndex() > combineIngredients)) {//|| (combineIngredients > -1 && getInventoryPizzaIngredientsIndex() > combineIngredients)) {
+        // We don't have any raw food (OR) we finished combining ingredients.
+        else if (getInventoryRawFoodIndex() != -1
+                || combineIngredients == -2) {
             log("STATE: Going to the bank, because there are no valid raw foods or pizza ingredients in our inventory.");
             return State.Bank;
         }
         // (PIZZA)
-        // -The last banking cycle set the combineIngredients flag.
+        // We are combining ingredients.
         else if (combineIngredients > -1) {
             log("STATE: Combining pizza ingredients.");
             return State.Pizza;
         }
         // (COOK)
-        // -If we fell through, we should have ingredients in our inventory to cook.
-        log("STATE: Going to cook food, because we have valid raw food in our inventory.");
-        return State.Cook;
+        // We have raw ingredients (AND) we are not combining ingredients.
+        else if (getInventoryRawFoodIndex() != -1) {
+            log("STATE: Going to cook food, because we have valid raw food in our inventory.");
+            return State.Cook;
+        }
+
+        log("WARNING: We fell through our getState method, returning to the bank...");
+        return State.Bank;
     }
 
     public void onStart() {
@@ -287,7 +290,7 @@ public class aleksandrCookerRewrite extends Script {
                 // Wait until none of the original ingredients are left
                 new cSleep(() -> !getInventory().contains(pizzaIngredients[combineIngredients]), 30000).sleep();
                 sleep(250);
-                combineIngredients = 0;
+                combineIngredients = -2;
                 break;
             case Cook:
                 if (getSettings().getRunEnergy() >= 50 && !getSettings().isRunning()) {
