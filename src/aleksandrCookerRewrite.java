@@ -35,7 +35,7 @@ public class aleksandrCookerRewrite extends Script {
     private NPC banker = null;
 
     // Flags
-    private int combineIngredients = -1;
+    private int combineIngredients = -2;
     private ExperienceTracker xpTracker;
 
 
@@ -53,23 +53,11 @@ public class aleksandrCookerRewrite extends Script {
     }
 
     // Ingredient Methods
-    int getInventoryPizzaIngredientsIndex() {
-        for (int i = 1; i < pizzaIngredients.length - 1; i += 2) {
-            if (getInventory().contains(pizzaIngredients[i])
-                    && getInventory().contains(pizzaIngredients[i - 1])
-                    && getSkills().getStatic(Skill.COOKING) >= 68) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     private int getBankPizzaIngredientsIndex() {
-        for (int i = 1; i < pizzaIngredients.length - 1; i += 2) {
+        for (int i = 1; i < pizzaIngredients.length; i += 2) {
             if (getBank().contains(pizzaIngredients[i])
                     && getBank().contains(pizzaIngredients[i - 1])
-                    && getSkills().getStatic(Skill.COOKING) >= 68) {
-                log("returning " + i + "for pizza status");
+                    && getSkills().getStatic(Skill.COOKING) >= 55) {
                 return i;
             }
         }
@@ -138,27 +126,20 @@ public class aleksandrCookerRewrite extends Script {
             log("STATE: Returning to the bank tiles because we are lost.");
             return State.Lost;
         }
-        // (BANK)
-        // We don't have any raw food (OR) we finished combining ingredients.
-        else if (getInventoryRawFoodIndex() != -1
-                || combineIngredients == -2) {
-            log("STATE: Going to the bank, because there are no valid raw foods or pizza ingredients in our inventory.");
-            return State.Bank;
-        }
         // (PIZZA)
         // We are combining ingredients.
         else if (combineIngredients > -1) {
-            log("STATE: Combining pizza ingredients.");
+            log("STATE: Combining pizza ingredients. DEBUG");
             return State.Pizza;
         }
         // (COOK)
         // We have raw ingredients (AND) we are not combining ingredients.
-        else if (getInventoryRawFoodIndex() != -1) {
+        else if (getInventoryRawFoodIndex() != -1 && combineIngredients != -2) {
             log("STATE: Going to cook food, because we have valid raw food in our inventory.");
             return State.Cook;
         }
-
-        log("WARNING: We fell through our getState method, returning to the bank...");
+        // (BANK)
+        // We don't have any raw food (OR) we finished combining ingredients.
         return State.Bank;
     }
 
@@ -202,9 +183,9 @@ public class aleksandrCookerRewrite extends Script {
         switch (getState()) {
             case Lost:
                 status = "walking back to the cooking area...";
-                getWalking().webWalk(validRegion);
+                getWalking().webWalk(new Position(3271, 3167, 0));
                 new cSleep(() -> validRegion.contains(myPosition()), 5000).sleep();
-                sleep(random(150, 300));
+                sleep(random(1500, 2000));
                 break;
             case Bank:
                 if (getSettings().getRunEnergy() < 25 && getSettings().isRunning()) {
@@ -224,10 +205,9 @@ public class aleksandrCookerRewrite extends Script {
                     }
                 } else {
                     status = "opening the bank interface...";
-                    banker.interact("Bank");
+                    getNpcs().closest("Banker").interact("Bank");
                     status = "adjusting the camera so that the range is easier to click...";
                     setCamera(22, 36, 0, 30);
-
                     new cSleep(() -> getBank().isOpen(), 10000).sleep();
                     sleep(random(150, 300));
                     if (getBank().isOpen()) {
