@@ -9,7 +9,7 @@ import org.osbot.rs07.script.ScriptManifest;
 import java.awt.*;
 import java.util.List;
 
-@ScriptManifest(name = "aleksandrCookerRewrite", author = "Solzhenitsyn", version = 1.1, info = "Smelts bars, and also crafts rings and amulets", logo = "")
+@ScriptManifest(name = "aleksandr's Desert Chef", author = "Solzhenitsyn", version = 1.1, info = "AIO Cooker + Pizza maker", logo = "")
 public class aleksandrCookerRewrite extends Script {
 
     private Timer timer;
