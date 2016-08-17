@@ -2,6 +2,7 @@ import org.osbot.rs07.api.map.Area;
 import org.osbot.rs07.api.map.Position;
 import org.osbot.rs07.api.model.Item;
 import org.osbot.rs07.api.model.NPC;
+import org.osbot.rs07.api.ui.Message;
 import org.osbot.rs07.api.ui.Skill;
 import org.osbot.rs07.api.util.ExperienceTracker;
 import org.osbot.rs07.script.Script;
@@ -10,7 +11,6 @@ import org.osbot.rs07.script.ScriptManifest;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Set;
 import java.util.List;
 
 @ScriptManifest(name = "aleksandrDesertChef", author = "Solzhenitsyn", version = 1.2, info = "AIO Cooker + Pizza maker", logo = "")
@@ -22,8 +22,8 @@ public class aleksandrCookerRewrite extends Script {
 
     //Paint
     Hashtable<String, Integer> progress = new Hashtable<>();
-    private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Tuna", "Plain pizza", "Lobster", "Swordfish", "Monkfish",
-            "Shark", "Sea turtle", "Dark crab", "Manta ray"};
+    private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Tuna", "Lobster", "Swordfish", "Monkfish",
+            "Shark", "Sea turtle", "Dark crab", "Manta ray", "Burnt"};
     private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Plain pizza", "Anchovy pizza"};
 
     // Areas
@@ -156,6 +156,7 @@ public class aleksandrCookerRewrite extends Script {
     public void onStart() {
         m = new Cursor(this);
         timer = new Timer(System.currentTimeMillis());
+        getBot().addMessageListener(this);
         xpTracker = getExperienceTracker();
         xpTracker.start(Skill.COOKING);
     }
@@ -172,7 +173,7 @@ public class aleksandrCookerRewrite extends Script {
                 if (s.equals(combine)) {
                     ingrCombined += progress.get(s);
                     if (progress.get(s) > 0) {
-                        prog.add(s + " - " + progress.get(s));
+                        prog.add(s + ": " + progress.get(s));
                     }
                 }
             }
@@ -180,7 +181,7 @@ public class aleksandrCookerRewrite extends Script {
                 if (s.equals(cooked)) {
                     fishCooked += progress.get(s);
                     if (progress.get(s) > 0) {
-                        prog.add(s + " - " + progress.get(s));
+                        prog.add(s + ": " + progress.get(s));
                     }
                 }
             }
@@ -207,7 +208,7 @@ public class aleksandrCookerRewrite extends Script {
             g.drawString("Ingredients Combined: "
                     + ingrCombined
                     + " ("
-                    + (int)((float)ingrCombined/((float)timer.getElapsed()/(float)msHour))
+                    + (int) ((float) ingrCombined / ((float) timer.getElapsed() / (float) msHour))
                     + ")", 12, 163);
         }
         g.drawString("Timer: " + timer.parse(timer.getElapsed()), 12, 182);
@@ -217,6 +218,56 @@ public class aleksandrCookerRewrite extends Script {
             for (String s : prog) {
                 yPos += 19;
                 g.drawString(s, 30, yPos);
+            }
+        }
+    }
+
+    public void onMessage(Message message) {
+        int i = 0;
+        if (message.getType().equals(Message.MessageType.GAME)) {
+            if (message.getMessage().contains("tomato to the pizza")) {
+                if (progress.containsKey("Incomplete pizza")) {
+                    i = progress.get("Incomplete pizza");
+                }
+                progress.put("Incomplete pizza", i + 1);
+            } else if (message.getMessage().contains("cheese to the pizza")) {
+                if (progress.containsKey("Uncooked pizza")) {
+                    i = progress.get("Uncooked pizza");
+                }
+                progress.put("Uncooked pizza", i + 1);
+            } else if (message.getMessage().contains("successfully bake a pizza")) {
+                if (progress.containsKey("Plain pizza")) {
+                    i = progress.get("Plain pizza");
+                }
+                progress.put("Plain pizza", i + 1);
+            } else if (message.getMessage().contains("anchovies to the pizza")) {
+                if (progress.containsKey("Anchovy pizza")) {
+                    i = progress.get("Anchovy pizza");
+                }
+                progress.put("Anchovy pizza", i + 1);
+            } else if (message.getMessage().contains("cook a sardine")) {
+                if (progress.containsKey("Sardine pizza")) {
+                    i = progress.get("Sardine");
+                }
+                progress.put("Sardine", i + 1);
+            } else if (message.getMessage().contains("cook a trout")) {
+                if (progress.containsKey("Trout")) {
+                    i = progress.get("Trout");
+                }
+                progress.put("Trout", i + 1);
+                log(message.getMessage() + ": " + progress.get("Trout"));
+            }  else if (message.getMessage().contains("cook a salmon")) {
+                if (progress.containsKey("Salmon")) {
+                    i = progress.get("Salmon");
+                }
+                progress.put("Salmon", i + 1);
+                log(message.getMessage() + ": " + progress.get("Salmon"));
+            } else if (message.getMessage().contains("burn")) {
+                if (progress.containsKey("Burnt")) {
+                    i = progress.get("Burnt");
+                }
+                progress.put("Burnt", i + 1);
+                log(message.getMessage() + ": " + progress.get("Burnt"));
             }
         }
     }
@@ -242,7 +293,7 @@ public class aleksandrCookerRewrite extends Script {
                     }
                 }
                 status = "walking back to the cooking area...";
-                getWalking().webWalk(new Position(3271, 3167, 0));
+                getWalking().webWalk(validRegion.getRandomPosition());
                 new cSleep(() -> validRegion.contains(myPosition()), 5000).sleep();
                 sleep(random(1500, 2000));
                 break;
@@ -252,11 +303,11 @@ public class aleksandrCookerRewrite extends Script {
                     getSettings().setRunning(false);
                 }
                 // If there is an obstacle en route to the bank, then handle it.
-                    status = "validating that a path to the bank exists...";
-                    if (getDoorHandler().handleNextObstacle(insideBank)) {
-                        status = "opening a closed door...";
-                        sleep(2500);
-                    }
+                status = "validating that a path to the bank exists...";
+                if (getDoorHandler().handleNextObstacle(insideBank)) {
+                    status = "opening a closed door...";
+                    sleep(2500);
+                }
 
                 if (banker == null) {
                     if (getBanker() != null) {
@@ -271,15 +322,6 @@ public class aleksandrCookerRewrite extends Script {
                     new cSleep(() -> getBank().isOpen(), 10000).sleep();
                     sleep(random(350, 500));
                     if (getBank().isOpen()) {
-                        for (Item s : getInventory().getItems()) {
-                            if (s != null) {
-                                int i = 0;
-                                if (progress.containsKey(s.getName())) {
-                                    i = progress.get(s.getName());
-                                }
-                                progress.put(s.getName(), i + s.getAmount());
-                            }
-                        }
                         // Deposit all items
                         if (!getInventory().isEmpty()) {
                             status = "depositing all items...";
@@ -339,7 +381,11 @@ public class aleksandrCookerRewrite extends Script {
                     status = "combining ingredients...";
                 }
                 // Wait until none of the original ingredients are left
-                new cSleep(() -> !getInventory().contains(pizzaIngredients[combineIngredients]), 30000).sleep();
+                if (getWidgets().get(233, 2) != null) {
+                    getWidgets().get(233, 2).interact("Continue");
+                }
+
+                new cSleep(() -> !getInventory().contains((pizzaIngredients[combineIngredients])), 30000).sleep();
                 sleep(250);
                 combineIngredients = -2;
                 break;
@@ -353,12 +399,12 @@ public class aleksandrCookerRewrite extends Script {
                     status = "validating that a path to the bank exists...";
                     if (getDoorHandler().handleNextObstacle(insideRange)) {
                         status = "opening a closed door...";
-                        new cSleep(() -> new Area(3276, 3178, 3278,3181).contains(myPosition()), 2500).sleep();
+                        new cSleep(() -> new Area(3276, 3178, 3278, 3181).contains(myPosition()), 2500).sleep();
                         sleep(3500);
                     }
-                   //status = "walking to the range...";
-                   //getWalking().webWalk(insideRange);
-                   // new cSleep(() -> insideRange.distance(myPosition()) < 3, 10000);
+                    //status = "walking to the range...";
+                    //getWalking().webWalk(insideRange);
+                    // new cSleep(() -> insideRange.distance(myPosition()) < 3, 10000);
                     // Select the food and use it on the range.
                     status = "selecting the raw food...";
                     getInventory().interact("Use", rawFoods[getInventoryRawFoodIndex()]);
@@ -374,11 +420,16 @@ public class aleksandrCookerRewrite extends Script {
                         status = "using the cooking interface...";
                         getWidgets().get(307, 2).interact("Cook All");
                         status = "cooking food...";
-                        sleep(2500);
+                        sleep(random(2500, 3500));
                         status = "adjusting the camera so that the banker is easier to click...";
                         setCamera(22, 40, 116, 200);
                         status = "cooking food...";
-                        new cSleep(() -> !myPlayer().isAnimating(), 70000).sleep();
+                        sleep(random(200,300));
+                        if (getNpcs().closest("Banker") != null && !getMouse().isOnCursor(getNpcs().closest("Banker"))) {
+                            getNpcs().closest("Banker").hover();
+                            new cSleep(() -> getMouse().isOnCursor(getNpcs().closest("Banker")), 2500).sleep();
+                        }
+                        new cSleep(() -> (!myPlayer().isAnimating() || getInventoryRawFoodIndex() == -1), 70000).sleep();
                     }
                 }
                 break;

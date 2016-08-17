@@ -1,12 +1,12 @@
 import org.osbot.rs07.script.Script;
 import java.awt.*;
 
-class Cursor {
-    private Script s;
-    private final BasicStroke TWO_STROKE = new BasicStroke(2);
+public class Cursor {
+    private final BasicStroke TWO_STROKE = new BasicStroke(1.5f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER);
     private final BasicStroke FIVE_STROKE = new BasicStroke(5);
     private final Color BLACK_COLOR = new Color(255, 255, 255);
-    private final Color WHITE_COLOR = new Color(255, 255, 255, 15);
+    private final Color WHITE_COLOR = new Color(211, 81, 26, 170);
+    private Script s;
 
     public Cursor(Script s) {
         this.s = s;
@@ -17,13 +17,9 @@ class Cursor {
         final int x = point.x;
         final int y = point.y;
         g.setColor(WHITE_COLOR);
-        g.setStroke(FIVE_STROKE);
-        g.drawLine(0, 504 - (504 - y), 765, 504 - (504 - y));
-        g.drawLine(765 - (765 - x), 0, 765 - (765 - x), 504);
-        g.setColor(BLACK_COLOR);
         g.setStroke(TWO_STROKE);
-        g.drawLine(0, 504 - (504 - y), 765, 504 - (504 - y));
-        g.drawLine(765 - (765 - x), 0, 765 - (765 - x), 504);
+        g.drawLine(x - 10, y + 10, x + 10, y - 10);
+        g.drawLine(x + 10, y + 10, x - 10, y - 10);
         g.setColor(Color.WHITE);
     }
 }
