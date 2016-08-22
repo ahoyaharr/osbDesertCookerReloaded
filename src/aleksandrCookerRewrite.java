@@ -1,6 +1,6 @@
+import org.osbot.rs07.api.Chatbox;
 import org.osbot.rs07.api.map.Area;
 import org.osbot.rs07.api.map.Position;
-import org.osbot.rs07.api.model.Item;
 import org.osbot.rs07.api.model.NPC;
 import org.osbot.rs07.api.ui.Message;
 import org.osbot.rs07.api.ui.Skill;
@@ -18,13 +18,15 @@ public class aleksandrCookerRewrite extends Script {
 
     private Timer timer;
     private Cursor m;
+    private aHopper hop;
+    private ClanChatHandler clanChat;
     private String status = "Getting ready for work...";
 
     //Paint
-    Hashtable<String, Integer> progress = new Hashtable<>();
-    private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Tuna", "Lobster", "Swordfish", "Monkfish",
+    private Hashtable<String, Integer> progress = new Hashtable<>();
+    private String[] cookedFood = {"Shrimps", "Beef", "Chicken", "Sardine", "Anchovies", "Trout", "Salmon", "Plain pizza", "Tuna", "Lobster", "Swordfish", "Monkfish",
             "Shark", "Sea turtle", "Dark crab", "Manta ray", "Burnt"};
-    private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Plain pizza", "Anchovy pizza"};
+    private String[] combinedIngredients = {"Incomplete pizza", "Uncooked pizza", "Anchovy pizza"};
 
     // Areas
     private Area validRegion = new Area(
@@ -36,7 +38,14 @@ public class aleksandrCookerRewrite extends Script {
             }
     );
 
-    private Area grandExchange = new Area(3172, 3487, 3169, 3491);
+    private Area grandExchange = new Area(
+            new int[][]{
+                    {3160, 3480}, {3169, 3480}, {3175, 3486},
+                    {3175, 3495}, {3169, 3500}, {3161, 3500},
+                    {3155, 3494}, {3155, 3485}
+            }
+    );
+    private Area grandExchangeLanding = new Area(3172, 3487, 3169, 3491);
 
     // Used for obstacle handling
     private Position insideRange = new Position(3272, 3180, 0);
@@ -129,6 +138,19 @@ public class aleksandrCookerRewrite extends Script {
         return time;
     }
 
+    // Pick the correct job
+    private String getJob() {
+        int i = getSkills().getStatic(Skill.COOKING);
+        if (i >= 68) {
+            return Jobs.COOK_PLAINPIZZA.getTitle();
+        } else if (i >= 50) {
+            return Jobs.COOK_MID.getTitle();
+        } else {
+            return Jobs.COOK_START.getTitle();
+        }
+    }
+
+
     private State getState() {
         // (LOST)
         // We are not in the region.
@@ -156,6 +178,8 @@ public class aleksandrCookerRewrite extends Script {
     public void onStart() {
         m = new Cursor(this);
         timer = new Timer(System.currentTimeMillis());
+        hop = new aHopper(this);
+        clanChat = new ClanChatHandler(this);
         getBot().addMessageListener(this);
         xpTracker = getExperienceTracker();
         xpTracker.start(Skill.COOKING);
@@ -256,7 +280,7 @@ public class aleksandrCookerRewrite extends Script {
                 }
                 progress.put("Trout", i + 1);
                 log(message.getMessage() + ": " + progress.get("Trout"));
-            }  else if (message.getMessage().contains("cook a salmon")) {
+            } else if (message.getMessage().contains("cook a salmon")) {
                 if (progress.containsKey("Salmon")) {
                     i = progress.get("Salmon");
                 }
@@ -272,11 +296,54 @@ public class aleksandrCookerRewrite extends Script {
         }
     }
 
+    private String mule = "Darrand";
+
     public int onLoop() throws InterruptedException {
         switch (getState()) {
             case Lost:
                 if (grandExchange.contains(myPosition())
                         && getNpcs().closest("Banker") != null) {
+                    if (hop.getCurrWorld() != 393) {
+                        hop.jumpTo(393);
+                        new cSleep(() -> getWorlds().getCurrentWorld() == hop.getCurrWorld(), 5000).sleep();
+                    }
+                    sleep(2000);
+                    if (!clanChat.isClanChatTabOpen()) {
+                        clanChat.openClanChatTab();
+                        new cSleep(() -> clanChat.isClanChatTabOpen(), 2500);
+                    }
+                    if (!clanChat.isInClan("iron")) {
+                        if (clanChat.isInClanChat()) {
+                            clanChat.leaveClanChat();
+                            new cSleep(() -> !clanChat.isInClanChat(), 5500).sleep();
+                        }
+                        clanChat.joinClanChat("Element Lore");
+                        new cSleep(() -> clanChat.isInClan("Iron Bank"), 7500).sleep();
+                    }
+                    if (getWidgets().get(193, 2) != null) {
+                        getWidgets().get(193, 2).interact("Continue");
+                        new cSleep(() -> getWidgets().get(193, 2) == null, 5000);
+                    }
+                    getKeyboard().typeString("/Oh socrates i need " + getJob());
+                    sleep(3500);
+                    while (!(getTrade().isFirstInterfaceOpen() || getTrade().isSecondInterfaceOpen())) {
+                        if (getPlayers().closest(mule) != null) {
+                            getPlayers().closest(mule).interact("Trade with");
+                            sleep(10000);
+                        }
+                    }
+                    new cSleep(() -> (getTrade().isFirstInterfaceOpen() || getTrade().isSecondInterfaceOpen()), 60000).sleep();
+                    if (getTrade().isFirstInterfaceOpen() || getTrade().isSecondInterfaceOpen()) {
+                        while (!getTrade().isSecondInterfaceOpen()) {
+                            getTrade().acceptTrade();
+                            new cSleep(() -> getWidgets().get(334, 25) != null, 2000).sleep();
+                        }
+                        while (getTrade().isSecondInterfaceOpen()) {
+                            getTrade().acceptTrade();
+                            new cSleep(() -> getWidgets().get(334, 25) == null, 2000);
+                        }
+                    }
+
                     getNpcs().closest("Banker").interact("Bank");
                     new cSleep(() -> getBank().isOpen(), 6500).sleep();
                     sleep(550);
@@ -320,7 +387,7 @@ public class aleksandrCookerRewrite extends Script {
                     setCamera(22, 36, 0, 30);
                     status = "waiting for bank interface to exist...";
                     new cSleep(() -> getBank().isOpen(), 10000).sleep();
-                    sleep(random(350, 500));
+                    sleep(random(150, 250));
                     if (getBank().isOpen()) {
                         // Deposit all items
                         if (!getInventory().isEmpty()) {
@@ -328,7 +395,7 @@ public class aleksandrCookerRewrite extends Script {
                             getBank().depositAll();
                         }
                         new cSleep(() -> getInventory().isEmpty(), 1500).sleep();
-                        sleep(250);
+                        sleep(125);
                         // If we have ingredients for a pizza, and we have a high enough cooking level, then we will withdraw the ingredients to combine.
                         combineIngredients = getBankPizzaIngredientsIndex();
                         if (combineIngredients > -1) {
@@ -352,8 +419,8 @@ public class aleksandrCookerRewrite extends Script {
                         else {
                             if (getBank().isOpen()) { // Redundant check
                                 status = "walking to the Grand Exchange, because we have finished working...";
-                                getWalking().webWalk(grandExchange);
-                                new cSleep(() -> grandExchange.contains(myPosition()), 180000).sleep();
+                                getWalking().webWalk(grandExchangeLanding);
+                                new cSleep(() -> grandExchangeLanding.contains(myPosition()), 180000).sleep();
                                 // Check to see if our mule exists, if it does then trade it.
                                 stop();
                             }
@@ -373,20 +440,40 @@ public class aleksandrCookerRewrite extends Script {
                 // Wait for the combine interface to exist
                 status = "waiting for the combine interface is exist...";
                 new cSleep(() -> getWidgets().get(309, 2) != null, 4000).sleep();
-                sleep(500);
+                sleep(200);
                 // Make all
                 if (getWidgets().get(309, 2) != null) {
                     status = "using the combine interface...";
                     getWidgets().get(309, 2).interact("Make all");
                     status = "combining ingredients...";
                 }
-                // Wait until none of the original ingredients are left
+                // hover mouse on banker
+                if (banker != null && !getMouse().isOnCursor(banker)) {
+                    log("attempting to hover over banker");
+                    banker.hover();
+                }
+                // Wait until none of the original ingredients are left or there is a level up dialogue
+                new cSleep(() -> (!getInventory().contains((pizzaIngredients[combineIngredients]))
+                        || getWidgets().get(233, 2) != null), 30000).sleep();
+                sleep(250);
                 if (getWidgets().get(233, 2) != null) {
                     getWidgets().get(233, 2).interact("Continue");
+                    new cSleep(() -> getWidgets().get(233, 2) == null, 2500).sleep();
+                    // Combine the remaining ingredients
+                    status = "selecting the first ingredient...";
+                    getInventory().interact("Use", pizzaIngredients[combineIngredients - 1]);
+                    new cSleep(() -> getInventory().isItemSelected(), 1000).sleep();
+                    status = "using it on the second ingredient...";
+                    getInventory().getItem(pizzaIngredients[combineIngredients]).interact();
+                    status = "waiting for the combine interface is exist...";
+                    new cSleep(() -> getWidgets().get(309, 2) != null, 4000).sleep();
+                    sleep(200);
+                    if (getWidgets().get(309, 2) != null) {
+                        status = "using the combine interface...";
+                        getWidgets().get(309, 2).interact("Make all");
+                        status = "combining ingredients...";
+                    }
                 }
-
-                new cSleep(() -> !getInventory().contains((pizzaIngredients[combineIngredients])), 30000).sleep();
-                sleep(250);
                 combineIngredients = -2;
                 break;
             case Cook:
@@ -402,9 +489,6 @@ public class aleksandrCookerRewrite extends Script {
                         new cSleep(() -> new Area(3276, 3178, 3278, 3181).contains(myPosition()), 2500).sleep();
                         sleep(3500);
                     }
-                    //status = "walking to the range...";
-                    //getWalking().webWalk(insideRange);
-                    // new cSleep(() -> insideRange.distance(myPosition()) < 3, 10000);
                     // Select the food and use it on the range.
                     status = "selecting the raw food...";
                     getInventory().interact("Use", rawFoods[getInventoryRawFoodIndex()]);
@@ -412,7 +496,6 @@ public class aleksandrCookerRewrite extends Script {
                     sleep(250);
                     status = "using the raw food on the range...";
                     getObjects().closest("Range").interact("Use");
-                    //range.interact("Use");
                     status = "waiting for the cooking interface to exist...";
                     new cSleep(() -> getWidgets().get(307, 2) != null, 17500).sleep();
                     sleep(1000);
@@ -424,10 +507,19 @@ public class aleksandrCookerRewrite extends Script {
                         status = "adjusting the camera so that the banker is easier to click...";
                         setCamera(22, 40, 116, 200);
                         status = "cooking food...";
-                        sleep(random(200,300));
-                        if (getNpcs().closest("Banker") != null && !getMouse().isOnCursor(getNpcs().closest("Banker"))) {
-                            getNpcs().closest("Banker").hover();
-                            new cSleep(() -> getMouse().isOnCursor(getNpcs().closest("Banker")), 2500).sleep();
+                        sleep(random(200, 300));
+                        NPC banker = getNpcs().closest("Banker");
+                        List<NPC> bankers = getNpcs().get(3267, 3164);
+                        for (NPC o : bankers) {
+                            if (o.getName().equals("Banker") && o.getPosition().equals(new Position(3267, 3164, 0))) {
+                                banker = o;
+                                log("found good banker");
+                                break;
+                            }
+                        }
+                        if (banker != null && !getMouse().isOnCursor(banker)) {
+                            log("attempting to hover over banker");
+                            banker.hover();
                         }
                         new cSleep(() -> (!myPlayer().isAnimating() || getInventoryRawFoodIndex() == -1), 70000).sleep();
                     }
